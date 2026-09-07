@@ -10,7 +10,9 @@ canonical pattern:
 2. At invocation, run the structured call and render the result back to
    markdown. If the structured call itself fails for any reason
    (malformed JSON from a weak model, transient provider issue), fall
-   back to a plain ``llm.invoke`` so the pipeline never blocks.
+   back to a plain ``llm.invoke``. RequiredStructuredOutputError is an explicit
+   exception: providers that exhaust validated JSON retries must stop rather
+   than silently weaken a required typed output contract.
 
 Centralising the pattern here keeps the agent factories small and ensures
 all three agents log the same warnings when fallback fires.
@@ -23,6 +25,8 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
+
+from tradingagents.llm_clients.errors import RequiredStructuredOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +67,7 @@ def invoke_structured_or_freetext(
     render: Callable[[T], str],
     agent_name: str,
 ) -> str:
-    """Run the structured call and render to markdown; fall back to free-text on any failure.
+    """Render structured output; honor required contracts before free-text fallback.
 
     ``prompt`` is whatever the underlying LLM accepts (a string for chat
     invocations, a list of message dicts for chat models that take that
@@ -79,6 +83,10 @@ def invoke_structured_or_freetext(
                 # as a structured miss and fall back, with a clear reason.
                 raise ValueError("structured output returned no parsed result")
             return render(result)
+        except RequiredStructuredOutputError:
+            # JSON compatibility providers have already exhausted their retry
+            # budget. Preserve their typed contract rather than hiding failure.
+            raise
         except Exception as exc:
             logger.warning(
                 "%s: structured-output invocation failed (%s); retrying once as free text",

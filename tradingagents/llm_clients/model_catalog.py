@@ -5,6 +5,8 @@ from __future__ import annotations
 ModelOption = tuple[str, str]
 ProviderModeOptions = dict[str, dict[str, list[ModelOption]]]
 
+DEFAULT_BYTEZ_MODEL = "zai-org/GLM-4.7"
+
 # Providers that serve many / frequently-changing models: offer only "Custom
 # model ID" rather than a list that goes stale.
 _CUSTOM_ONLY: dict[str, list[ModelOption]] = {
@@ -79,6 +81,16 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 
 
 MODEL_OPTIONS: ProviderModeOptions = {
+    "bytez": {
+        "quick": [
+            ("GLM-4.7 - Bytez", DEFAULT_BYTEZ_MODEL),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("GLM-4.7 - Bytez", DEFAULT_BYTEZ_MODEL),
+            ("Custom model ID", "custom"),
+        ],
+    },
     "openai": {
         "quick": [
             ("GPT-5.6 Luna - Fast, cost-efficient frontier", "gpt-5.6-luna"),
@@ -163,12 +175,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # `ollama pull` beyond the three suggested defaults.
     "ollama": {
         "quick": [
+            ("Qwen3 4B Instruct", "qwen3:4b-instruct"),
             ("Qwen3:latest (8B)", "qwen3:latest"),
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
+            ("Qwen3 4B Instruct", "qwen3:4b-instruct"),
             ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("Qwen3:latest (8B)", "qwen3:latest"),

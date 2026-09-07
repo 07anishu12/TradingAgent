@@ -44,6 +44,11 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Bytez's current LangChain package pins the legacy LangChain 0.3 line, so it
+# is isolated from the core install and only selected by users of this backend.
+bytez = [
+    "langchain-bytez>=0.0.7",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

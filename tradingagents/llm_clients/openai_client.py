@@ -1,10 +1,12 @@
+import json
 import os
 import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage, convert_to_messages
+from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
 from .api_key_env import get_api_key_env
@@ -49,6 +51,58 @@ class NormalizedChatOpenAI(ChatOpenAI):
         if method == "function_calling" and not caps.supports_tool_choice:
             kwargs.setdefault("tool_choice", None)
         return super().with_structured_output(schema, method=method, **kwargs)
+
+
+class OllamaChatOpenAI(NormalizedChatOpenAI):
+    """Preserve Ollama's output cap and use its native JSON-schema grammar."""
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        # Current LangChain renames max_tokens, but Ollama's compatibility
+        # endpoint consumes max_tokens. Without this, generation is unbounded.
+        if "max_completion_tokens" in payload:
+            payload["max_tokens"] = payload.pop("max_completion_tokens")
+        return payload
+
+    def with_structured_output(self, schema, *, method=None, **kwargs):
+        resolved = method or "json_schema"
+        native = super().with_structured_output(schema, method=resolved, **kwargs)
+        if resolved != "json_schema":
+            return native
+        # Ollama's grammar enforces syntax, but field descriptions also need
+        # to be visible in the prompt for small local models to fill them well.
+        description = schema.model_json_schema() if hasattr(schema, "model_json_schema") else schema
+
+        def instruct(input_):
+            messages = input_.to_messages() if hasattr(input_, "to_messages") else (
+                [HumanMessage(content=input_)] if isinstance(input_, str) else convert_to_messages(input_)
+            )
+            return messages + [HumanMessage(content=(
+                "Return only a JSON object matching this schema: " + json.dumps(description)
+                + ". Keep text fields concise. Use only supplied evidence; mark missing evidence explicitly."
+            ))]
+
+        from langchain_core.exceptions import OutputParserException
+        from openai import LengthFinishReasonError
+        from pydantic import ValidationError
+
+        from .errors import RequiredStructuredOutputError
+
+        failures = (OutputParserException, ValidationError, LengthFinishReasonError)
+        validated = (RunnableLambda(instruct) | native).with_retry(
+            retry_if_exception_type=failures, stop_after_attempt=(self.max_retries or 0) + 1,
+        )
+
+        def invoke(input_, config=None):
+            try:
+                return validated.invoke(input_, config=config)
+            except failures:
+                raise RequiredStructuredOutputError(
+                    "Ollama structured output failed validation after the retry budget; "
+                    "increase TRADINGAGENTS_MAX_TOKENS if the response was truncated"
+                ) from None
+
+        return RunnableLambda(invoke)
 
 
 class LocalCompatibleChatOpenAI(NormalizedChatOpenAI):
@@ -224,7 +278,7 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
-    "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
+    "ollama":     ProviderSpec(chat_class=OllamaChatOpenAI, base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(

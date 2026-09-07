@@ -1,5 +1,7 @@
 import os
 
+from tradingagents.llm_clients.model_catalog import DEFAULT_BYTEZ_MODEL
+
 _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 
 # Single source of truth for env-var → config-key overrides. To expose
@@ -69,7 +71,17 @@ def _apply_env_overrides(config: dict) -> dict:
     return config
 
 
-DEFAULT_CONFIG = _apply_env_overrides({
+def _apply_provider_defaults(config: dict) -> dict:
+    """Use Bytez's model default without changing defaults for other providers."""
+    if config.get("llm_provider", "").lower() == "bytez":
+        if not os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
+            config["deep_think_llm"] = DEFAULT_BYTEZ_MODEL
+        if not os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM"):
+            config["quick_think_llm"] = DEFAULT_BYTEZ_MODEL
+    return config
+
+
+DEFAULT_CONFIG = _apply_provider_defaults(_apply_env_overrides({
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
@@ -167,4 +179,4 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
-})
+}))

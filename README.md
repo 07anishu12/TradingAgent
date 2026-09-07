@@ -144,6 +144,7 @@ export ZHIPU_API_KEY=...           # GLM via Z.AI (international)
 export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
 export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
+export BYTEZ_API_KEY=...           # Bytez (GLM-4.7 and other Bytez models)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
@@ -160,6 +161,162 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
 ```
+
+## Bytez / GLM-4.7
+
+TradingAgents has a Bytez provider for GLM-4.7. From this checkout, install
+the project and test tools, then configure the environment:
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+The published `langchain-bytez==0.0.7` pins `langchain==0.3.17`, which
+conflicts with the modern LangChain core required by the Google provider.
+The `bytez` extra is therefore **not currently a validated installation
+path**. Do not downgrade existing providers to satisfy that pin. When the
+official package cannot import, the adapter uses a LangChain chat model
+that calls Bytez's native [model API](https://docs.bytez.com/http-reference/model/run).
+Live validation on 2026-09-06 reached Bytez, but inference for
+`zai-org/GLM-4.7` returned HTTP 404: Bytez reported that the model does not
+exist or has not yet been added to its catalog. Both the documented and
+legacy SDK authentication formats returned that result. The documented
+catalog endpoint also returned HTTP 500, so no alternative model ID was
+verified. Authentication, successful inference, and the full PLTR graph
+remain unverified; Bytez must make the requested model available before
+this backend can pass the live gate.
+
+```env
+BYTEZ_API_KEY=...
+TRADINGAGENTS_LLM_PROVIDER=bytez
+TRADINGAGENTS_DEEP_THINK_LLM=zai-org/GLM-4.7
+TRADINGAGENTS_QUICK_THINK_LLM=zai-org/GLM-4.7
+TRADINGAGENTS_LLM_MAX_RETRIES=2
+```
+
+Start with the opt-in, small live test suite, then a PLTR-only analysis:
+
+```bash
+BYTEZ_LIVE_TEST=1 python -m pytest -q tests/test_bytez_live.py
+python examples/run_bytez_glm47.py --tickers PLTR
+```
+
+The tests check authentication/model resolution via real chat, plain JSON,
+a typed Portfolio decision, and a tool-call/observation round trip. The parse
+retry test injects one malformed response, then requests a real correction;
+it does not simulate or claim to reproduce real API rate limits. Transport
+retry behavior is covered with mocked HTTP failures in the unit tests.
+Live tests are skipped unless `BYTEZ_LIVE_TEST=1`. Opting in without
+`BYTEZ_API_KEY` fails with a setup error and makes no request. Requests use
+a 120-second HTTP timeout and 2,048 output-token cap by default; override the
+cap with `TRADINGAGENTS_MAX_TOKENS` if GLM exhausts it on reasoning.
+To test a different model without changing the GLM defaults:
+
+```bash
+BYTEZ_LIVE_TEST=1 BYTEZ_LIVE_MODEL=Qwen/Qwen3-4B python -m pytest -q -x tests/test_bytez_live.py -k 'not pltr'
+```
+
+Bytez's [free plan](https://docs.bytez.com/model-api/docs/billing) covers open
+models up to 7B parameters, one concurrent request, and a limited credit
+allowance refreshed every four weeks; this is not unlimited free inference.
+Keep auto-reload disabled in your Bytez account if you require zero paid usage.
+Sequential live probes on 2026-09-06 for `Qwen/Qwen3-4B`,
+`Qwen/Qwen2.5-3B-Instruct`, `meta-llama/Llama-3.2-3B-Instruct`,
+`microsoft/Phi-3.5-mini-instruct`, and `HuggingFaceTB/SmolLM2-1.7B-Instruct`
+all returned HTTP 404 before inference. Qwen3 also returned 404 through Bytez's
+documented OpenAI-compatible endpoint; the catalog request returned HTTP 500.
+These are small-model candidates, **not verified working Bytez backends**.
+The catalog failure prevents an exhaustive available-model check.
+A full PLTR runner attempt with Qwen3-4B also stopped at the first LLM
+request with HTTP 404; it did not reach Portfolio Manager.
+
+After a candidate passes the live compatibility tests, use it for the full
+runner through the existing model overrides:
+
+```bash
+TRADINGAGENTS_DEEP_THINK_LLM=Qwen/Qwen3-4B \
+TRADINGAGENTS_QUICK_THINK_LLM=Qwen/Qwen3-4B \
+python examples/run_bytez_glm47.py --tickers PLTR --output-dir results/bytez_glm47/qwen3-4b
+```
+
+The full PLTR test requires an additional explicit flag because it runs all
+agents and real data sources:
+
+```bash
+BYTEZ_LIVE_TEST=1 BYTEZ_PLTR_LIVE_TEST=1 python -m pytest -q tests/test_bytez_live.py -k pltr
+```
+
+Once PLTR succeeds, run all five tickers (PLTR, LMT, NVDA, MSFT, AVGO):
+
+```bash
+python examples/run_bytez_glm47.py
+# Shortcut (not an autonomous market scanner):
+python autonomous_research.py --provider bytez
+```
+
+Both runners accept `--tickers PLTR` and `--date YYYY-MM-DD`, use two debate
+and two risk rounds, retain all four analysts, and save reports, checkpoints,
+and memory under the ignored `results/bytez_glm47/` directory. Model environment
+overrides are honored. Completion requires every agent's report and a parseable
+Portfolio Manager rating. See `.env.bytez.example` for the full configuration.
+
+Bytez's [LangChain integration](https://github.com/Bytez-com/langchain_bytez)
+provides chat and streaming, but lacks native tool binding. The adapter sends
+JSON instructions with complete tool argument schemas and validates the
+existing Pydantic decision schemas. Exhausted JSON retries stop the run;
+they never turn into an untyped Portfolio decision. `stream()` currently
+buffers the response into one chunk to avoid replaying partial output on
+retry. Native JSON-schema/tool-choice options are not advertised. Configurable
+transport retries cover timeouts, HTTP 429 and temporary server failures;
+authentication errors are not retried by the HTTP fallback.
+
+## Local Qwen3 / Ollama
+
+Run the full team locally with Qwen3 4B Instruct. No LLM API key is required.
+The current Ollama `qwen3:4b` tag resolves to the thinking-only 2507 variant;
+use [`qwen3:4b-instruct`](https://ollama.com/library/qwen3:4b-instruct) for this
+workflow. The `qwen3:4b-tradingagents` profile shares its weights and sets a
+32K context and bounded output. Existing models and providers remain available.
+
+From this checkout on macOS:
+
+```bash
+brew install ollama
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/python autonomous_research.py --tickers PLTR
+# After PLTR, run the five-stock experiment:
+.venv/bin/python autonomous_research.py
+```
+
+The runner starts a localhost-only Ollama server if needed, downloads Instruct
+if missing (about 2.5 GB), and creates the local profile. Alternatively, prepare
+it manually with `ollama pull qwen3:4b-instruct` and
+`ollama create qwen3:4b-tradingagents -f examples/ollama/Qwen3.Modelfile`.
+Use `.env.ollama.example` for environment overrides. A pre-existing Ollama
+server is reused; its own settings remain in effect.
+
+`examples/run_ollama_qwen3.py` is the dedicated entry point. Both entry points
+accept `--tickers`, `--date YYYY-MM-DD`, and `--output-dir`. They retain all
+four analysts and two research/risk rounds, print per-agent progress, and save
+reports plus `run_summary.json` under `results/ollama_qwen3/local-v1/`.
+An interrupted ticker resumes from its checkpoint on the same date. The root
+shortcut researches the five configured stocks; it is not an autonomous market
+scanner or an order-execution system.
+
+Ollama uses its native JSON-schema output mode with schema instructions and
+Pydantic validation. Invalid or truncated decisions retry within the configured
+budget and then stop with a clear error. The output cap is translated to
+Ollama's `max_tokens` wire field. Increase `TRADINGAGENTS_MAX_TOKENS` if required.
+Run the opt-in local compatibility test with:
+
+```bash
+OLLAMA_LIVE_TEST=1 .venv/bin/python -m pytest -q tests/test_ollama_local.py
+```
+
+Small models can misinterpret data or tools. Market data still comes from the
+existing Yahoo Finance, FRED, and Polymarket stack. FRED needs its own key;
+unavailable sources and rate limits can reduce the evidence in a report.
 
 ### CLI Usage
 
