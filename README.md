@@ -7,6 +7,7 @@
   <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
   <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
   <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
+  <img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"/>
 </div>
 <br>
 <div align="center">
@@ -42,7 +43,7 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🦙 [Local Ollama Setup](#local-qwen3--ollama) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -63,10 +64,10 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
 Our framework decomposes complex trading tasks into specialized roles.
 
 ### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
-- News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
-- Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
+- **Fundamentals Analyst**: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
+- **Sentiment Analyst**: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
+- **News Analyst**: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
+- **Technical Analyst**: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
 
 <p align="center">
   <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -94,6 +95,8 @@ Our framework decomposes complex trading tasks into specialized roles.
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+---
+
 ## Installation and CLI
 
 ### Installation
@@ -112,7 +115,7 @@ conda activate tradingagents
 
 Install the package and its dependencies:
 ```bash
-pip install .
+pip install -e ".[dev]"
 ```
 
 ### Docker
@@ -123,16 +126,17 @@ cp .env.example .env  # add your API keys
 docker compose run --rm tradingagents
 ```
 
-For local models with Ollama:
+For 100% local models with Ollama:
 ```bash
 docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
-### Required APIs
+### Required APIs & Providers
 
-TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
+TradingAgents supports multiple LLM providers. Set the API key for your chosen cloud provider, or use Ollama for free, local inference:
 
 ```bash
+# Cloud Providers (Optional when using Ollama)
 export OPENAI_API_KEY=...          # OpenAI (GPT)
 export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
@@ -146,7 +150,11 @@ export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
 export BYTEZ_API_KEY=...           # Bytez (GLM-4.7 and other Bytez models)
 export OPENROUTER_API_KEY=...      # OpenRouter
-export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage (Optional data provider)
+
+# Local Ollama (No API Key Required)
+export TRADINGAGENTS_LLM_PROVIDER=ollama
+export OLLAMA_BASE_URL=http://localhost:11434/v1  # Or remote ollama-serve endpoint
 ```
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
@@ -155,36 +163,105 @@ For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_pro
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
-For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
+For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
 ```
 
+---
+
+## Local Qwen3 / Ollama
+
+Run the complete multi-agent research team locally with **Qwen3 4B Instruct**. **No external API key or paid LLM account is required.**
+
+### Key Highlights
+- **100% Local & Private**: All agent reasoning, debates, and risk assessments run directly on your hardware.
+- **Instruct Tuning**: The standard Ollama `qwen3:4b` tag resolves to the thinking-only 2507 variant; TradingAgents utilizes [`qwen3:4b-instruct`](https://ollama.com/library/qwen3:4b-instruct) via a tailored `qwen3:4b-tradingagents` profile that provides a 32K context window and bounded token generation.
+- **Native JSON-Schema Output**: Strict Pydantic validation ensures structured portfolio decisions and reports.
+- **Automatic Server & Model Setup**: Automated runners handle downloading missing models, creating the Modelfile profile, and managing the local Ollama instance.
+
+### Quick Start (macOS / Linux)
+
+1. **Install Ollama & Dependencies**:
+   ```bash
+   brew install ollama
+   python3.12 -m venv .venv
+   source .venv/bin/activate
+   pip install -e ".[dev]"
+   ```
+
+2. **Run Single-Stock Autonomous Analysis**:
+   ```bash
+   python autonomous_research.py --tickers PLTR
+   ```
+   *The runner automatically launches a local Ollama server if needed, downloads `qwen3:4b-instruct` (~2.5 GB), builds the `qwen3:4b-tradingagents` Modelfile profile, and executes all 4 analysts, 2 debate rounds, and 2 risk rounds.*
+
+3. **Run Full 5-Stock Portfolio Experiment**:
+   ```bash
+   python autonomous_research.py
+   ```
+   *Executes analysis across PLTR, LMT, NVDA, MSFT, and AVGO, outputting comprehensive logs and summary metrics to `results/ollama_qwen3/local-v1/`.*
+
+### Manual Ollama Model Preparation
+
+If you prefer to configure the model profile manually:
+```bash
+# Pull the instruct base model
+ollama pull qwen3:4b-instruct
+
+# Create the optimized tradingagents profile
+ollama create qwen3:4b-tradingagents -f examples/ollama/Qwen3.Modelfile
+```
+
+### Dedicated Runner & CLI Options
+
+Use `examples/run_ollama_qwen3.py` for targeted experiments with specific dates, tickers, and output directories:
+
+```bash
+# Analyze NVDA on a specific historical date
+python examples/run_ollama_qwen3.py --tickers NVDA --date 2026-01-15 --output-dir results/ollama_qwen3/nvda_run
+
+# Use .env.ollama.example configuration
+cp .env.ollama.example .env
+```
+
+Parameters supported:
+- `--tickers`: List of tickers to analyze (e.g., `--tickers PLTR NVDA AAPL`)
+- `--date`: Analysis date in `YYYY-MM-DD` format (defaults to current date)
+- `--output-dir`: Custom path for reports, run summaries, and SQLite checkpoints
+
+### Remote Ollama Server
+
+To point TradingAgents at an Ollama server running on a remote workstation, GPU server, or home lab:
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=ollama
+export OLLAMA_BASE_URL=http://your-gpu-server:11434/v1
+python autonomous_research.py --tickers PLTR
+```
+
+### Testing Local Ollama Compatibility
+
+Run the opt-in local integration test suite to verify model resolution, tool execution, structured output parsing, and token budget limits:
+
+```bash
+OLLAMA_LIVE_TEST=1 pytest -q tests/test_ollama_local.py
+```
+
+> **Note on Local Model Inference**: Market data continues to flow from live sources (Yahoo Finance, FRED, Polymarket). Ensure network access for data scraping. For FRED macro indicators, configure `FRED_API_KEY` in your `.env`.
+
+---
+
 ## Bytez / GLM-4.7
 
-TradingAgents has a Bytez provider for GLM-4.7. From this checkout, install
-the project and test tools, then configure the environment:
+TradingAgents also provides a Bytez provider for GLM-4.7. From this checkout, install the project and test tools, then configure the environment:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-The published `langchain-bytez==0.0.7` pins `langchain==0.3.17`, which
-conflicts with the modern LangChain core required by the Google provider.
-The `bytez` extra is therefore **not currently a validated installation
-path**. Do not downgrade existing providers to satisfy that pin. When the
-official package cannot import, the adapter uses a LangChain chat model
-that calls Bytez's native [model API](https://docs.bytez.com/http-reference/model/run).
-Live validation on 2026-09-06 reached Bytez, but inference for
-`zai-org/GLM-4.7` returned HTTP 404: Bytez reported that the model does not
-exist or has not yet been added to its catalog. Both the documented and
-legacy SDK authentication formats returned that result. The documented
-catalog endpoint also returned HTTP 500, so no alternative model ID was
-verified. Authentication, successful inference, and the full PLTR graph
-remain unverified; Bytez must make the requested model available before
-this backend can pass the live gate.
+The published `langchain-bytez==0.0.7` pins `langchain==0.3.17`, which conflicts with the modern LangChain core required by the Google provider. The `bytez` extra is therefore **not currently a validated installation path**. Do not downgrade existing providers to satisfy that pin. When the official package cannot import, the adapter uses a LangChain chat model that calls Bytez's native [model API](https://docs.bytez.com/http-reference/model/run). Live validation on 2026-09-06 reached Bytez, but inference for `zai-org/GLM-4.7` returned HTTP 404: Bytez reported that the model does not exist or has not yet been added to its catalog. Both the documented and legacy SDK authentication formats returned that result. The documented catalog endpoint also returned HTTP 500, so no alternative model ID was verified. Authentication, successful inference, and the full PLTR graph remain unverified; Bytez must make the requested model available before this backend can pass the live gate.
 
 ```env
 BYTEZ_API_KEY=...
@@ -201,37 +278,15 @@ BYTEZ_LIVE_TEST=1 python -m pytest -q tests/test_bytez_live.py
 python examples/run_bytez_glm47.py --tickers PLTR
 ```
 
-The tests check authentication/model resolution via real chat, plain JSON,
-a typed Portfolio decision, and a tool-call/observation round trip. The parse
-retry test injects one malformed response, then requests a real correction;
-it does not simulate or claim to reproduce real API rate limits. Transport
-retry behavior is covered with mocked HTTP failures in the unit tests.
-Live tests are skipped unless `BYTEZ_LIVE_TEST=1`. Opting in without
-`BYTEZ_API_KEY` fails with a setup error and makes no request. Requests use
-a 120-second HTTP timeout and 2,048 output-token cap by default; override the
-cap with `TRADINGAGENTS_MAX_TOKENS` if GLM exhausts it on reasoning.
-To test a different model without changing the GLM defaults:
+The tests check authentication/model resolution via real chat, plain JSON, a typed Portfolio decision, and a tool-call/observation round trip. The parse retry test injects one malformed response, then requests a real correction; it does not simulate or claim to reproduce real API rate limits. Transport retry behavior is covered with mocked HTTP failures in the unit tests. Live tests are skipped unless `BYTEZ_LIVE_TEST=1`. Opting in without `BYTEZ_API_KEY` fails with a setup error and makes no request. Requests use a 120-second HTTP timeout and 2,048 output-token cap by default; override the cap with `TRADINGAGENTS_MAX_TOKENS` if GLM exhausts it on reasoning. To test a different model without changing the GLM defaults:
 
 ```bash
 BYTEZ_LIVE_TEST=1 BYTEZ_LIVE_MODEL=Qwen/Qwen3-4B python -m pytest -q -x tests/test_bytez_live.py -k 'not pltr'
 ```
 
-Bytez's [free plan](https://docs.bytez.com/model-api/docs/billing) covers open
-models up to 7B parameters, one concurrent request, and a limited credit
-allowance refreshed every four weeks; this is not unlimited free inference.
-Keep auto-reload disabled in your Bytez account if you require zero paid usage.
-Sequential live probes on 2026-09-06 for `Qwen/Qwen3-4B`,
-`Qwen/Qwen2.5-3B-Instruct`, `meta-llama/Llama-3.2-3B-Instruct`,
-`microsoft/Phi-3.5-mini-instruct`, and `HuggingFaceTB/SmolLM2-1.7B-Instruct`
-all returned HTTP 404 before inference. Qwen3 also returned 404 through Bytez's
-documented OpenAI-compatible endpoint; the catalog request returned HTTP 500.
-These are small-model candidates, **not verified working Bytez backends**.
-The catalog failure prevents an exhaustive available-model check.
-A full PLTR runner attempt with Qwen3-4B also stopped at the first LLM
-request with HTTP 404; it did not reach Portfolio Manager.
+Bytez's [free plan](https://docs.bytez.com/model-api/docs/billing) covers open models up to 7B parameters, one concurrent request, and a limited credit allowance refreshed every four weeks; this is not unlimited free inference. Keep auto-reload disabled in your Bytez account if you require zero paid usage. Sequential live probes on 2026-09-06 for `Qwen/Qwen3-4B`, `Qwen/Qwen2.5-3B-Instruct`, `meta-llama/Llama-3.2-3B-Instruct`, `microsoft/Phi-3.5-mini-instruct`, and `HuggingFaceTB/SmolLM2-1.7B-Instruct` all returned HTTP 404 before inference. Qwen3 also returned 404 through Bytez's documented OpenAI-compatible endpoint; the catalog request returned HTTP 500. These are small-model candidates, **not verified working Bytez backends**. The catalog failure prevents an exhaustive available-model check. A full PLTR runner attempt with Qwen3-4B also stopped at the first LLM request with HTTP 404; it did not reach Portfolio Manager.
 
-After a candidate passes the live compatibility tests, use it for the full
-runner through the existing model overrides:
+After a candidate passes the live compatibility tests, use it for the full runner through the existing model overrides:
 
 ```bash
 TRADINGAGENTS_DEEP_THINK_LLM=Qwen/Qwen3-4B \
@@ -239,8 +294,7 @@ TRADINGAGENTS_QUICK_THINK_LLM=Qwen/Qwen3-4B \
 python examples/run_bytez_glm47.py --tickers PLTR --output-dir results/bytez_glm47/qwen3-4b
 ```
 
-The full PLTR test requires an additional explicit flag because it runs all
-agents and real data sources:
+The full PLTR test requires an additional explicit flag because it runs all agents and real data sources:
 
 ```bash
 BYTEZ_LIVE_TEST=1 BYTEZ_PLTR_LIVE_TEST=1 python -m pytest -q tests/test_bytez_live.py -k pltr
@@ -254,94 +308,38 @@ python examples/run_bytez_glm47.py
 python autonomous_research.py --provider bytez
 ```
 
-Both runners accept `--tickers PLTR` and `--date YYYY-MM-DD`, use two debate
-and two risk rounds, retain all four analysts, and save reports, checkpoints,
-and memory under the ignored `results/bytez_glm47/` directory. Model environment
-overrides are honored. Completion requires every agent's report and a parseable
-Portfolio Manager rating. See `.env.bytez.example` for the full configuration.
+Both runners accept `--tickers PLTR` and `--date YYYY-MM-DD`, use two debate and two risk rounds, retain all four analysts, and save reports, checkpoints, and memory under the ignored `results/bytez_glm47/` directory. Model environment overrides are honored. Completion requires every agent's report and a parseable Portfolio Manager rating. See `.env.bytez.example` for the full configuration.
 
-Bytez's [LangChain integration](https://github.com/Bytez-com/langchain_bytez)
-provides chat and streaming, but lacks native tool binding. The adapter sends
-JSON instructions with complete tool argument schemas and validates the
-existing Pydantic decision schemas. Exhausted JSON retries stop the run;
-they never turn into an untyped Portfolio decision. `stream()` currently
-buffers the response into one chunk to avoid replaying partial output on
-retry. Native JSON-schema/tool-choice options are not advertised. Configurable
-transport retries cover timeouts, HTTP 429 and temporary server failures;
-authentication errors are not retried by the HTTP fallback.
+Bytez's [LangChain integration](https://github.com/Bytez-com/langchain_bytez) provides chat and streaming, but lacks native tool binding. The adapter sends JSON instructions with complete tool argument schemas and validates the existing Pydantic decision schemas. Exhausted JSON retries stop the run; they never turn into an untyped Portfolio decision. `stream()` currently buffers the response into one chunk to avoid replaying partial output on retry. Native JSON-schema/tool-choice options are not advertised. Configurable transport retries cover timeouts, HTTP 429 and temporary server failures; authentication errors are not retried by the HTTP fallback.
 
-## Local Qwen3 / Ollama
+---
 
-Run the full team locally with Qwen3 4B Instruct. No LLM API key is required.
-The current Ollama `qwen3:4b` tag resolves to the thinking-only 2507 variant;
-use [`qwen3:4b-instruct`](https://ollama.com/library/qwen3:4b-instruct) for this
-workflow. The `qwen3:4b-tradingagents` profile shares its weights and sets a
-32K context and bounded output. Existing models and providers remain available.
-
-From this checkout on macOS:
-
-```bash
-brew install ollama
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/python autonomous_research.py --tickers PLTR
-# After PLTR, run the five-stock experiment:
-.venv/bin/python autonomous_research.py
-```
-
-The runner starts a localhost-only Ollama server if needed, downloads Instruct
-if missing (about 2.5 GB), and creates the local profile. Alternatively, prepare
-it manually with `ollama pull qwen3:4b-instruct` and
-`ollama create qwen3:4b-tradingagents -f examples/ollama/Qwen3.Modelfile`.
-Use `.env.ollama.example` for environment overrides. A pre-existing Ollama
-server is reused; its own settings remain in effect.
-
-`examples/run_ollama_qwen3.py` is the dedicated entry point. Both entry points
-accept `--tickers`, `--date YYYY-MM-DD`, and `--output-dir`. They retain all
-four analysts and two research/risk rounds, print per-agent progress, and save
-reports plus `run_summary.json` under `results/ollama_qwen3/local-v1/`.
-An interrupted ticker resumes from its checkpoint on the same date. The root
-shortcut researches the five configured stocks; it is not an autonomous market
-scanner or an order-execution system.
-
-Ollama uses its native JSON-schema output mode with schema instructions and
-Pydantic validation. Invalid or truncated decisions retry within the configured
-budget and then stop with a clear error. The output cap is translated to
-Ollama's `max_tokens` wire field. Increase `TRADINGAGENTS_MAX_TOKENS` if required.
-Run the opt-in local compatibility test with:
-
-```bash
-OLLAMA_LIVE_TEST=1 .venv/bin/python -m pytest -q tests/test_ollama_local.py
-```
-
-Small models can misinterpret data or tools. Market data still comes from the
-existing Yahoo Finance, FRED, and Polymarket stack. FRED needs its own key;
-unavailable sources and rate limits can reduce the evidence in a report.
-
-### CLI Usage
+## CLI Usage
 
 Launch the interactive CLI:
+
 ```bash
 tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
-### Markets and tickers
+You will see an interactive menu to select your desired tickers, analysis date, LLM provider (including **Ollama**), research depth, and more.
+
+### Markets and Tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
 
-- US: `AAPL`, `SPY`
-- Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
-- India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
-- China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
-- Crypto: `BTC-USD`, `ETH-USD`
+- **US**: `AAPL`, `SPY`, `NVDA`, `PLTR`
+- **Hong Kong**: `0700.HK` · **Tokyo**: `7203.T` · **London**: `AZN.L`
+- **India**: `RELIANCE.NS`, `.BO` · **Canada**: `.TO` · **Australia**: `.AX`
+- **China A-shares**: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
+- **Crypto**: `BTC-USD`, `ETH-USD`
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
-An interface will appear showing results as they load, letting you track the agent's progress as it runs.
+An interface will appear showing real-time agent execution as reports load:
 
 <p align="center">
   <img src="assets/cli/cli_news.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -351,58 +349,69 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+---
+
 ## TradingAgents Package
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, **Ollama for local models**, and Azure OpenAI for enterprise.
 
 ### Python Usage
 
-To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+To use TradingAgents programmatically inside your code, initialize a `TradingAgentsGraph()` object. The `.propagate()` function runs the multi-agent graph and returns a structured trading decision:
 
-```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-
-ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
-
-# forward propagate
-_, decision = ta.propagate("NVDA", "2026-01-15")
-print(decision)
-```
-
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
-
+#### Programmatic Local Ollama Example:
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
+config["llm_provider"] = "ollama"
+config["backend_url"] = "http://localhost:11434/v1"
+config["deep_think_llm"] = "qwen3:4b-tradingagents"
+config["quick_think_llm"] = "qwen3:4b-tradingagents"
+config["max_debate_rounds"] = 2
+config["max_risk_discuss_rounds"] = 2
+config["checkpoint_enabled"] = True
+
+ta = TradingAgentsGraph(debug=True, config=config)
+
+# Run full multi-agent research on NVDA
+_, decision = ta.propagate("NVDA", "2026-01-15")
+print("Portfolio Manager Decision:", decision)
+```
+
+#### Cloud LLM Example:
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint
 config["deep_think_llm"] = "gpt-5.6"      # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.6-luna" # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
-print(decision)
+print("Portfolio Manager Decision:", decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
 
+---
+
 ## Persistence and Recovery
 
-TradingAgents persists two kinds of state across runs.
+TradingAgents persists two kinds of state across runs:
 
-### Decision log
-
-The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+### Decision Log
+The decision log is always active. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
 
 Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
-### Checkpoint resume
-
+### Checkpoint Resume
 Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. On a resume run you will see `Resuming from step N for <TICKER> on <date>` in the logs; on a new run you will see `Starting fresh`. Checkpoints are cleared automatically on successful completion.
 
 Per-ticker SQLite databases live at `~/.tradingagents/cache/checkpoints/<TICKER>.db` (override the base with `TRADINGAGENTS_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
@@ -419,15 +428,15 @@ ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
 
+---
+
 ## Reproducibility
 
-TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
+TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them:
 
-Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-5.x family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
-
-Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
-
-To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `TRADINGAGENTS_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. The current curated models are reasoning-first and largely ignore temperature, so for tighter reproducibility use a non-reasoning model, which you can set explicitly via the Custom model ID option.
+- **Language model sampling is non-deterministic**: Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models vary because their internal reasoning is sampled.
+- **Live data moves**: News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but social and news sources still reflect "now".
+- **Controlling temperature**: Set `temperature` in your config (or `TRADINGAGENTS_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable.
 
 ```python
 config = DEFAULT_CONFIG.copy()
@@ -441,15 +450,19 @@ What does not vary anymore: the analyzed company identity is resolved determinis
 
 Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
 
+---
+
 ## Contributing
 
 Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
+
+---
 
 ## Citation
 
 Please reference our work if you find *TradingAgents* provides you with some help :)
 
-```
+```bibtex
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
       title={TradingAgents: Multi-Agents LLM Financial Trading Framework}, 
       author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
@@ -460,3 +473,7 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+
+---
+## License
+Distributed under the [Apache-2.0 License](LICENSE).
